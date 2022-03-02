@@ -22,10 +22,10 @@
 #define MAX_IN 256
 char *c = " ";
 char *colon = ":";
-char history[HISTORY_LEN];
 char *path = "PATH";
 char *home = "HOME";
 int i = 0; // counter for history
+char history[HISTORY_LEN][HISTORY_LEN] = {""};
 
 /**
  * This function parses through the input and opens the file if it exists
@@ -34,31 +34,30 @@ int i = 0; // counter for history
  */
 void parse(char *str){
     char *token = strtok(str,c); 
+    token[strlen(token) - 1] = '\0';
+    hist(token);
     FILE *file;
     if(token[0] == '/'){ // Option 1
         if(access(str, F_OK || X_OK) != -1){ // if file exists
             if(fork() != 0){ // parent 
-                printf("/hi parent\n");
 		        wait(NULL);
             }else{ // child process
-                printf("/hi child\n");
                 file = fopen(token, "r");
                 int status = execv(token,file);
                 if (status != 0){
-                    printf("Error");
+                    printf("Error\n");
                     exit(-1);
                 }
             }
 	    }else{
-            token[strlen(token) - 1] = '\0';
             if(token[strlen(token)-1] == '&'){
                 if(fork() != 0){ // parent process
-                    exit(-1);
+                    
                 }else{ // child process
                     file = fopen(token, "r");
                     int status = execv(token,file);
                 if (status != 0){
-                    printf("Error");
+                    printf("Error\n");
                     exit(-1);
                 }
             }
@@ -67,19 +66,18 @@ void parse(char *str){
             }
         }
     }else{ // Option 2
-        if(token == "exit"){
-            printf("exit\n");
+        if(strcmp(token, "exit") == 0){
             exit(-1);
-        }else if(token == "pwd"){
-            printf("pwd\n");
+        }else if(strcmp(token,"pwd") == 0){
             pwd();
-        }else if(token == "history"){
+        }else if(strcmp(token, "history") == 0){
             printHistory();
-        }else if(token == "cd"){
+        }else if(strcmp(token, "cd") == 0){
             cd(str);
         }else{
         char cwd[MAX_IN];
         getcwd(cwd, sizeof(cwd));
+        strcat(cwd, "/");
         strcat(cwd, token); // concat the cwd & user input
         if(access(cwd, F_OK) != -1){ // if file exists
             if(fork() != 0){ // parent process
@@ -95,27 +93,30 @@ void parse(char *str){
 	    }else{
             char *value;
             value = getenv(path);
+            printf("%s\n", value);
             char *tok = strtok(value,colon);
+            char *temp;
             while(tok != NULL){
-                char cwd[MAX_IN];
-                getcwd(cwd, sizeof(cwd));
-                strcat(cwd, tok); // concat the cwd & user input
-                if(access(cwd, F_OK) != -1){ // if file exists
+                temp = tok;
+                temp[strlen(temp) - 1] = '\0';
+                strcat(temp, "/");
+                strcat(temp, token); // concat the cwd & user input
+                if(access(temp, F_OK) != -1){ // if file exists
                     if(fork() != 0){ // parent process
                         wait(NULL);
                     }else{ // child process
-                        file = fopen(token, "r");
-                        int status = execv(token,file);
+                        file = fopen(temp, "r");
+                        int status = execv(temp,file);
                         if (status != 0){
-                            printf("Error");
+                            printf("Error\n");
                             exit(-1);
                         }
                     }
                 }
                 tok = strtok(NULL,colon);
-            } // find out how to figure out whether all the tokens did not work to output error message
+            }
         }
-        }
+    }
     }
     token = strtok(NULL,c);
 }
@@ -135,11 +136,13 @@ void pwd(){
  * @param str The inputted path
  */
 void cd(char *str){
-    if(str == "cd"){
+    if(strcmp(str, "cd") == 0){
         char *value;
         value = getenv(home);
+        printf("%s\n", value);
         chdir(value);
     }else{
+        str = strtok(NULL, " ");
         chdir(str);
     }
 }
@@ -153,7 +156,7 @@ void hist(char *str){
     if(i>=HISTORY_LEN){
         i=0;
     }else{
-        history[i] = str;
+        strcpy(history[i], str);
         i++;
     }
 }
@@ -163,6 +166,6 @@ void hist(char *str){
  */
 void printHistory(){
     for(int j=0; j<=i;j++){
-        printf("%s\n", history[i]);
+        printf("%s\n", history[j]);
     }
 }
